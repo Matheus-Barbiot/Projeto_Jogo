@@ -12,75 +12,90 @@ class inimigo(bge.types.KX_PythonComponent):
     def start(self, args):
         self.scene = bge.logic.getCurrentScene()
         self.character = bge.constraints.getCharacter(self.object)
+        self.player = self.scene.objects.get("Player")
         
         for n in self.object.children: 
-            if "armadura" in n.name:
+            if "inimigo_armadura" in n.name:
                 self.armadura = n
         self.hit = self.scene.objects.get("inimigo_ataqueHit")
         
-        self.pulo = 0
         self.speed = args["Speed"]
         self.distance = args["Distance"]
         self.minDistance = choice([3,4,5,6])
         
-        self.Ray = self.object.sensors['Radar']
         self.Near = self.object.sensors['Near']
         self.NearMin = self.object.sensors['NearMin']
+        
+        self.Seguir = self.object.actuators['seguirPlayer']
+        self.Seguir.distance = self.minDistance + 0.5
+        
         self.Near.distance: self.Near.resetDistance = self.distance
         self.NearMin.distance: self.Near.resetDistance = self.minDistance
         
     def seguir(self):
-        player = self.scene.objects.get("Player")
-        if player:
-            if self.object.getDistanceTo(player) < self.distance:
-                if self.object.getDistanceTo(player) > self.minDistance:
-                    vetor = mathutils.Vector(player.worldPosition - self.object.worldPosition)
-                    self.character.walkDirection = vetor.normalized() * self.speed
-                    self.armadura["Andar"] = True
-            
+        escolha = self.object["escolha"]
+        
+        if escolha == 1:
+            if self.object.getDistanceTo(self.player) < self.minDistance + 0.5: 
+                self.armadura["Andar"] = True 
+                self.armadura["direcao"] = 1
+                self.object.applyMovement([self.speed, 0, 0], True)
+        elif escolha == 2:
+            if self.object.getDistanceTo(self.player) < self.minDistance + 0.5: 
+                self.armadura["Andar"] = True
+                self.armadura["direcao"] = -1
+                self.object.applyMovement([-self.speed, 0, 0], True)
+        elif escolha == 3:
+            self.armadura["Atacar"] = True
+            self.armadura["Andar"] = False
+            self.armadura["direcao"] = 0
+            if self.object["AtaqueTemp"] >= 0.6:
+                if self.hitAtaque:
+                    self.hitAtaque["ataque"] = True
+                    self.object.applyMovement([0, 0.2, 0], True)
                 else:
-                    escolha = self.object["escolha"]
-                    self.parar()
-                    
-                    if escolha == 3:
-                        self.atacar()
-                            
-                    elif escolha == 1:
-                        self.pulo = 0
-                        self.object["ataqueTemp"] = 0.0
-                        self.armadura["Andar"] = True 
-                        self.armadura["direcao"] = 1
-                        self.object.applyMovement([self.speed, 0, 0], True)
-                        
-                    elif escolha == 2:
-                        self.pulo = 0
-                        self.object["ataqueTemp"] = 0.0
-                        self.armadura["Andar"] = True
-                        self.armadura["direcao"] = -1
-                        self.object.applyMovement([-self.speed, 0, 0], True)
-                  
-            else:
-                self.parar()
-                return
+                    pass
+ 
+        else:
+            self.object["avistado"] = False
+            self.parar()
         
     def parar(self):
+        if self.object["avistado"] == False:
+            self.armadura["Andar"] = False
+        self.armadura["Atacar"] = False
+        self.armadura["direcao"] = 0
+        self.object["AtaqueTemp"] = 0.0
+        self.object["escolha"] = 0
+        if self.hitAtaque:
+            self.hitAtaque["ataque"] = False
         self.character.walkDirection = mathutils.Vector([0,0,0])
-        self.armadura["Andar"] = False
-        self.armadura["direcao"] = 0
-    
-    def atacar(self):
-        self.armadura["Andar"] = False
-        self.armadura["direcao"] = 0
-        if self.object["ataqueTemp"] > 0.7:
-            self.hit["ataque"] = True
-            if self.pulo == 0:
-                self.object.applyMovement([0, 2, 0], True)
-                self.character.jump()
-                self.pulo += 1
-            return
         
     def update(self):
-        if self.NearMin.hitObject == None:
-            self.object["escolha"] = 0 
-            self.object["ataqueTemp"] = 0.0
-        self.seguir()
+        for obj in self.object.children["inimigo_armadura"].children:
+            if obj.name == "inimigo_espadaHit":
+                self.hitAtaque = obj
+            elif obj.name == "inimigo_ataqueHit":
+                self.hitAtaque = obj
+            else:
+                pass
+            
+        if self.player:
+            if self.object.getDistanceTo(self.player) < 25:
+                self.object["avistado"] = True
+                
+                if self.object["avistado"] == True:
+                    self.armadura['Andar'] = True
+                    
+                    if self.object.getDistanceTo(self.player) < self.minDistance + 0.5:  
+                        self.seguir()
+                    else:
+                        self.armadura["direcao"] = 0
+                        self.object["escolha"] = 0
+                
+                else:
+                    self.parar()
+        else:
+            return
+        
+        pass

@@ -7,4 +7,4 @@ def main(cont):
     if over.positive:
         hitPos = over.hitPosition
         own.worldPosition = hitPos
-        own.localPosition.z += 1
+        own.worldPosition.z += 0.2
